@@ -4,13 +4,12 @@ HOST = "127.0.0.1"
 PORT = 7777
 
 def handshake(socket_client):
-    socket_client.sendall(str.encode("Testando mensagem"))
-    data = socket_client.recv(1024)
+    socket_client.sendto(str.encode("Testando mensagem"), (HOST, PORT))
+    data, endereco = socket_client.recvfrom(1024)
     print("Mensagem ecoada:", data.decode())
 
 def main():
-    socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    socket_client.connect((HOST, PORT))
+    socket_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     handshake(socket_client)
     
     socket_client.close()
