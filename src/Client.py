@@ -5,20 +5,25 @@ HOST = "127.0.0.1"
 PORT = 7777
 
 def handshake(socket_client):
-    tamanho_max = int(input("Tamanho maximo do texto: "))
 
-    if tamanho_max < 30:
-        tamanho_max = 30
+    while True:
+        try:
+            tamanho_max = int(input("Tamanho maximo do texto: "))
+            if tamanho_max < 30:
+                tamanho_max = 30
+            break
+        except ValueError:
+            print("Digite um numero inteiro válido.")
 
-    modo_envio = input("Modo de envio (individual/lote): ")
+    modo_envio = input("Modo de envio (individual/lote): ").lower().strip()
     while modo_envio not in ["individual", "lote"]:
         print("Modo de envio invalido.")
-        modo_envio = input("Modo de envio (individual/lote): ")
+        modo_envio = input("Modo de envio (individual/lote): ").lower().strip()
 
-    modo_janela = input("Modo de janela (GBN/SR): ")
+    modo_janela = input("Modo de janela (GBN/SR): ").upper().strip()
     while modo_janela not in ["GBN", "SR"]:
         print("Modo de janela invalido.")
-        modo_janela = input("Modo de janela (GBN/SR): ")
+        modo_janela = input("Modo de janela (GBN/SR): ").upper().strip()
 
     proposta = {
         "tipo": "HANDSHAKE_REQUEST",

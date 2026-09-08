@@ -27,12 +27,16 @@ def main():
             continue
 
         modo_envio = mensagem.get("modo_envio")
+        if isinstance(modo_envio, str):
+            modo_envio = modo_envio.lower().strip()
 
         if modo_envio not in ["individual", "lote"]:
             print("Modo de envio invalido.")
             continue
 
         modo_janela = mensagem.get("modo_janela")
+        if isinstance(modo_janela, str):
+            modo_janela = modo_janela.upper().strip()
 
         if modo_janela not in ["GBN", "SR"]:
             print("Modo de janela invalido.")
@@ -64,9 +68,9 @@ def main():
 
         socket_server.sendto(json.dumps(resposta).encode(), endereco)
 
+        print("Aguardando nova conexão de um cliente")
 
     socket_server.close()
-
 
 if __name__ == "__main__":
     main()
