@@ -4,6 +4,17 @@ import json
 HOST = "127.0.0.1"
 PORT = 7777
 
+CAPACIDADE_MAXIMA_JANELA = 5
+handshakes_realizados = 0
+
+
+def calcular_janela_servidor():
+    global handshakes_realizados
+    janela = CAPACIDADE_MAXIMA_JANELA - (handshakes_realizados % CAPACIDADE_MAXIMA_JANELA)
+    handshakes_realizados += 1
+    return janela
+
+
 def main():
 
     socket_server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -52,11 +63,12 @@ def main():
             tamanho_max_texto = 30
 
         janela_proposta = mensagem.get("janela_desejada", 5)
-
         if not isinstance(janela_proposta, int):
             janela_proposta = 5
 
-        janela_final = max(1, min(janela_proposta, 5))
+        capacidade_servidor = calcular_janela_servidor()
+        janela_final = min(capacidade_servidor, janela_proposta)
+        print(f"Cliente pediu ate {janela_proposta}; servidor tinha capacidade {capacidade_servidor}; janela final {janela_final}")
 
         resposta = {
             "tipo": "HANDSHAKE_ACK",

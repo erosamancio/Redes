@@ -25,16 +25,39 @@ def handshake(socket_client):
         print("Modo de janela invalido.")
         modo_janela = input("Modo de janela (GBN/SR): ").upper().strip()
 
+    while True:
+        try:
+            janela_desejada = int(input("Tamanho de janela desejado (1 a 5): "))
+            if 1 <= janela_desejada <= 5:
+                break
+            print("A janela deve estar entre 1 e 5.")
+        except ValueError:
+            print("Digite um numero inteiro válido.")
+
     proposta = {
         "tipo": "HANDSHAKE_REQUEST",
         "modo_envio": modo_envio,
         "modo_janela": modo_janela,
         "tamanho_max_texto": tamanho_max,
-        "janela_desejada": 5
+        "janela_desejada": janela_desejada
     }
 
-    socket_client.sendto(json.dumps(proposta).encode(), (HOST, PORT))
-    data, endereco = socket_client.recvfrom(1024)
+    TENTATIVAS_MAX = 3
+    TIMEOUT_SEGUNDOS = 3
+    socket_client.settimeout(TIMEOUT_SEGUNDOS)
+
+    data = None
+    for tentativa in range(1, TENTATIVAS_MAX + 1):
+        socket_client.sendto(json.dumps(proposta).encode(), (HOST, PORT))
+        try:
+            data, endereco = socket_client.recvfrom(1024)
+            break
+        except socket.timeout:
+            print(f"Sem resposta do servidor (tentativa {tentativa}/{TENTATIVAS_MAX}). Reenviando...")
+
+    if data is None:
+        print("Servidor nao respondeu apos varias tentativas. Encerrando.")
+        return None, None
 
     try:
         texto_resposta = data.decode()
