@@ -30,3 +30,16 @@ Este projeto consiste em uma aplicação cliente e servidor feita para garantir 
   <summary><strong>Entrega 3: Inserção de Erros e Perdas (23/11/2026)</strong></summary>
 
 </details>
+
+## Equipe
+
+* André Borges Viana - abv2@cesar.school
+* Eros Amancio Nascimento - ean@cesar.school
+* Ian Felipe Costa van Drunen - ifcvd@cesar.school
+* Lucas Coutinho de Almeida Bayma - lcab@cesar.school
+* Luiz Felipe de Siqueira Gonçalves - lfgs@cesar.school
+* Mateus Lins Farias - mlf2@cesar.school
+* Pedro de Sá e Benevides de Lima Moreira - psblm@cesar.school
+* Rafael Chiappetta Barboza - rcb2@cesar.school
+* Telmo Melo Ferreira Calheiros - tmfc@cesar.school
+* Thiago Neiva de Lima Santos - tnls@cesar.school
