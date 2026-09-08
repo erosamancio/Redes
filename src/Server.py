@@ -1,4 +1,5 @@
-import socket, json
+import socket
+import json
 
 HOST = "127.0.0.1"
 PORT = 7777
@@ -21,43 +22,51 @@ def main():
 
         print("Metadados recebidos: ", mensagem)
 
-        if mensagem.get("tipo") == None:
+        if mensagem.get("tipo") != "HANDSHAKE_REQUEST":
             print("A mensagem recebida nao e do tipo esperado.")
             continue
 
-        '''
-        o servidor p3ga a janela especificada pelo cliente na mensagem, 
-        e se não for um valor entr3
-        1 e 5, d3fine automaticamente como 5
-        '''
-        janela_proposta = mensagem.get("janela_proposta", 5) 
+        modo_envio = mensagem.get("modo_envio")
+
+        if modo_envio not in ["individual", "lote"]:
+            print("Modo de envio invalido.")
+            continue
+
+        modo_janela = mensagem.get("modo_janela")
+
+        if modo_janela not in ["GBN", "SR"]:
+            print("Modo de janela invalido.")
+            continue
+
+        tamanho_max_texto = mensagem.get("tamanho_max_texto")
+
+        if not isinstance(tamanho_max_texto, int):
+            print("Tamanho maximo do texto invalido.")
+            continue
+
+        if tamanho_max_texto < 30:
+            tamanho_max_texto = 30
+
+        janela_proposta = mensagem.get("janela_desejada", 5)
 
         if not isinstance(janela_proposta, int):
             janela_proposta = 5
 
         janela_final = max(1, min(janela_proposta, 5))
 
-        '''
-        montando o dict r3sp0sta, que vai ser codificado em uma string json, e depois em bytes
-        '''
         resposta = {
             "tipo": "HANDSHAKE_ACK",
-            "modo_envio": mensagem.get("modo_envio"),
-            "modo_janela": mensagem.get("modo_janela"),
-            "tamanho_max_texto": mensagem.get("tamanho_max_texto"),
+            "modo_envio": modo_envio,
+            "modo_janela": modo_janela,
+            "tamanho_max_texto": tamanho_max_texto,
             "janela_final": janela_final
         }
 
         socket_server.sendto(json.dumps(resposta).encode(), endereco)
 
 
-        
-        
-        if not data:
-            print("Fechando a conexão")
-            break
-        socket_server.sendto(data, endereco)
-
     socket_server.close()
+
+
 if __name__ == "__main__":
     main()
