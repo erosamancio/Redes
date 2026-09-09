@@ -5,28 +5,28 @@ HOST = "127.0.0.1"
 PORT = 7777
 
 CAPACIDADE_MAXIMA_JANELA = 5
-handshakes_realizados = 0
-
-
-def calcular_janela_servidor():
-    global handshakes_realizados
-    janela = CAPACIDADE_MAXIMA_JANELA - (handshakes_realizados % CAPACIDADE_MAXIMA_JANELA)
-    handshakes_realizados += 1
-    return janela
 
 
 def main():
 
-    socket_server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    socket_server = socket.socket(
+        socket.AF_INET,
+        socket.SOCK_DGRAM
+    )
+
     socket_server.bind((HOST, PORT))
 
-    print("Aguardando conexão de um cliente")
+    print("Servidor iniciado. Aguardando handshake do cliente...")
 
     while True:
+
         try:
             data, endereco = socket_server.recvfrom(1024)
+
             texto = data.decode()
+
             mensagem = json.loads(texto)
+
         except (UnicodeDecodeError, json.JSONDecodeError):
             print("O pacote recebido eh invalido. Ignorando...")
             continue
@@ -38,6 +38,7 @@ def main():
             continue
 
         modo_envio = mensagem.get("modo_envio")
+
         if isinstance(modo_envio, str):
             modo_envio = modo_envio.lower().strip()
 
@@ -46,6 +47,7 @@ def main():
             continue
 
         modo_janela = mensagem.get("modo_janela")
+
         if isinstance(modo_janela, str):
             modo_janela = modo_janela.upper().strip()
 
@@ -62,13 +64,11 @@ def main():
         if tamanho_max_texto < 30:
             tamanho_max_texto = 30
 
-        janela_proposta = mensagem.get("janela_desejada", 5)
-        if not isinstance(janela_proposta, int):
-            janela_proposta = 5
+        janela_final = CAPACIDADE_MAXIMA_JANELA
 
-        capacidade_servidor = calcular_janela_servidor()
-        janela_final = min(capacidade_servidor, janela_proposta)
-        print(f"Cliente pediu ate {janela_proposta}; servidor tinha capacidade {capacidade_servidor}; janela final {janela_final}")
+        print(
+            f"Janela definida pelo servidor: {janela_final}"
+        )
 
         resposta = {
             "tipo": "HANDSHAKE_ACK",
@@ -78,11 +78,15 @@ def main():
             "janela_final": janela_final
         }
 
-        socket_server.sendto(json.dumps(resposta).encode(), endereco)
+        socket_server.sendto(
+            json.dumps(resposta).encode(),
+            endereco
+        )
 
-        print("Aguardando nova conexão de um cliente")
+        print("Aguardando novo handshake...")
 
     socket_server.close()
+
 
 if __name__ == "__main__":
     main()
