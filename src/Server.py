@@ -16,7 +16,8 @@ def main():
 
     socket_server.bind((HOST, PORT))
 
-    print("Servidor iniciado. Aguardando handshake do cliente...")
+    print("Servidor UDP iniciado na porta 7777.")
+    print("Servidor ativo. Aguardando handshake de um cliente...")
 
     while True:
 
@@ -66,9 +67,7 @@ def main():
 
         janela_final = CAPACIDADE_MAXIMA_JANELA
 
-        print(
-            f"Janela definida pelo servidor: {janela_final}"
-        )
+        print(f"Janela definida pelo servidor: {janela_final}")
 
         resposta = {
             "tipo": "HANDSHAKE_ACK",
@@ -83,7 +82,8 @@ def main():
             endereco
         )
 
-        print("Aguardando novo handshake...")
+        print("Handshake concluido com sucesso.")
+        print("Servidor continua ativo. Aguardando novo handshake...")
 
     socket_server.close()
 
