@@ -3,6 +3,7 @@ import json
 
 HOST = "127.0.0.1"
 PORT = 7777
+TAMANHO_PAYLOAD = 4
 
 def handshake(socket_client):
 
@@ -77,6 +78,25 @@ def handshake(socket_client):
         resposta.get("tamanho_max_texto")
     )
 
+def ler_input_usuario(tamanho_max):
+    texto = input(f"Digite o texto da mensagem (maximo de {tamanho_max} caracteres): ").strip()
+
+    while len(texto) > tamanho_max or not texto:
+
+        if not texto:
+            texto = input(f"Texto vazio. Tente novamente (maximo de {tamanho_max} caracteres): ").strip()
+        elif len(texto) > tamanho_max:
+            texto = input(f"Texto ultrapassou limite maximo de {tamanho_max} caracteres. Tente novamente: ").strip()
+
+    return texto
+
+def fragmentar_texto(texto_validado):
+    fragmentos = []
+
+    for i in range(0, len(texto_validado), TAMANHO_PAYLOAD):
+        fragmentos.append(texto_validado[i:i+TAMANHO_PAYLOAD])
+
+    return fragmentos
 
 def main():
 
@@ -87,10 +107,19 @@ def main():
 
     resposta_janela, resposta_tamanho = handshake(socket_client)
 
-    print("Janela final:", resposta_janela)
-    print("Tamanho maximo:", resposta_tamanho)
+    if resposta_janela is None or resposta_tamanho is None:
+        socket_client.close()
+    
+    else: 
+        print("Janela final:", resposta_janela)
+        print("Tamanho maximo:", resposta_tamanho)
 
-    socket_client.close()
+        texto_valido = ler_input_usuario(resposta_tamanho)
+        payloads = fragmentar_texto(texto_valido)
+
+        print("".join(payloads) == texto_valido)
+
+        socket_client.close()
 
 
 if __name__ == "__main__":
