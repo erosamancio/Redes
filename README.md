@@ -32,8 +32,8 @@ Este projeto consiste em uma aplicação cliente e servidor feita para garantir 
   * Lógica de envio em lote no cliente respeitando o limite máximo da janela estipulada ✅
   * Recepção de pacotes no servidor e impressão dos metadados individuais no terminal ✅
   * Envio das confirmações de recebimento (ACKs) pelo servidor ✅
-  * Escuta contínua de ACKs no cliente e deslizamento da janela de envio
-  * Detecção de fim de transmissão e remontagem da mensagem de texto final no servidor
+  * Escuta contínua de ACKs no cliente e deslizamento da janela de envio ✅
+  * Detecção de fim de transmissão e remontagem da mensagem de texto final no servidor ✅
 </details>
 
 <details>

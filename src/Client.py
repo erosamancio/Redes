@@ -5,6 +5,9 @@ HOST = "127.0.0.1"
 PORT = 7777
 TAMANHO_PAYLOAD = 4
 
+def calcular_checksum(payload):
+    return sum(payload.encode()) % 65536
+
 def handshake(socket_client):
     while True:
         try:
@@ -53,7 +56,7 @@ def handshake(socket_client):
 
     if data is None:
         print("Servidor nao respondeu Encerrando")
-        return None, None
+        return None, None, None
 
     try:
         texto_resposta = data.decode()
@@ -61,17 +64,18 @@ def handshake(socket_client):
 
     except (UnicodeDecodeError, json.JSONDecodeError):
         print("Resposta do servidor corrompida")
-        return None, None
+        return None, None, None
 
     if resposta.get("tipo") != "HANDSHAKE_ACK":
         print("Resposta inesperada do servidor")
-        return None, None
+        return None, None, None
 
     print(resposta)
 
     return (
         resposta.get("janela_final"),
-        resposta.get("tamanho_max_texto")
+        resposta.get("tamanho_max_texto"),
+        resposta.get("modo_janela")
     )
 
 def ler_input_usuario(tamanho_max):
@@ -93,20 +97,62 @@ def fragmentar_texto(texto_validado):
 
     return fragmentos
 
+def enviar_pacote(socket_client, seq, payload, total_pacotes):
+    pacote = {
+        "tipo": "DATA",
+        "seq": seq,
+        "payload": payload,
+        "checksum": calcular_checksum(payload),
+        "ultimo": seq == total_pacotes - 1
+    }
+
+    socket_client.sendto(json.dumps(pacote).encode(), (HOST, PORT))
+    print(f"Enviado Pacote DATA Seq {seq} Payload {payload}")
+
 def enviar_pacotes_iniciais(socket_client, payloads, janela):
     total_pacotes = len(payloads)
     limite_envio = min(janela, total_pacotes)
 
     for seq in range(limite_envio):
-        pacote = {
-            "tipo": "DATA",
-            "seq": seq,
-            "payload": payloads[seq],
-            "checksum": 0
-        }
-        
-        socket_client.sendto(json.dumps(pacote).encode(), (HOST, PORT))
-        print(f"Enviado Pacote DATA Seq {seq} Payload {payloads[seq]}")
+        enviar_pacote(socket_client, seq, payloads[seq], total_pacotes)
+
+    return limite_envio
+
+def receber_acks(socket_client, payloads, janela, modo_janela, proximo):
+    total_pacotes = len(payloads)
+    confirmados = set()
+    base = 0
+
+    while base < total_pacotes:
+        try:
+            data, endereco = socket_client.recvfrom(1024)
+            ack = json.loads(data.decode())
+        except socket.timeout:
+            print("Timeout esperando ACK")
+            break
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            continue
+
+        if ack.get("tipo") != "ACK":
+            continue
+
+        seq = ack.get("seq")
+        print(f"Recebido ACK Seq {seq}")
+
+        if modo_janela == "GBN":
+            if seq + 1 > base:
+                base = seq + 1
+        else:
+            confirmados.add(seq)
+            while base in confirmados:
+                base += 1
+
+        while proximo < total_pacotes and proximo < base + janela:
+            enviar_pacote(socket_client, proximo, payloads[proximo], total_pacotes)
+            proximo += 1
+
+    if base == total_pacotes:
+        print("Todos os pacotes foram confirmados")
 
 def main():
     socket_client = socket.socket(
@@ -114,19 +160,20 @@ def main():
         socket.SOCK_DGRAM
     )
 
-    resposta_janela, resposta_tamanho = handshake(socket_client)
+    resposta_janela, resposta_tamanho, resposta_modo_janela = handshake(socket_client)
 
-    if resposta_janela is None or resposta_tamanho is None:
+    if resposta_janela is None or resposta_tamanho is None or resposta_modo_janela is None:
         socket_client.close()
-    
-    else: 
+
+    else:
         print("Janela final", resposta_janela)
         print("Tamanho maximo", resposta_tamanho)
 
         texto_valido = ler_input_usuario(resposta_tamanho)
         payloads = fragmentar_texto(texto_valido)
 
-        enviar_pacotes_iniciais(socket_client, payloads, resposta_janela)
+        proximo = enviar_pacotes_iniciais(socket_client, payloads, resposta_janela)
+        receber_acks(socket_client, payloads, resposta_janela, resposta_modo_janela, proximo)
 
         socket_client.close()
 
