@@ -1,6 +1,8 @@
 import socket
 import json
 
+
+
 HOST = "127.0.0.1"
 PORT = 7777
 CAPACIDADE_MAXIMA_JANELA = 5
@@ -8,6 +10,24 @@ CAPACIDADE_MAXIMA_JANELA = 5
 def calcular_checksum(payload):
     return sum(payload.encode()) % 65536
 
+def descriptografar(texto, chave, deslocamento):
+    resultado = ""
+    indice_chave = 0
+    for letra in texto:
+        if letra.isalpha():
+            desloc = deslocamento[ord(chave[indice_chave]) - 65]
+            if letra.isupper():
+                resultado += chr((ord(letra) - 65 - desloc) % 26 + 65)
+            else:
+                resultado += chr((ord(letra) - 97 - desloc) % 26 + 97)
+            indice_chave += 1
+            if indice_chave == len(chave):
+                indice_chave = 0
+        else:
+            resultado += letra
+    return resultado
+
+    
 def main():
     socket_server = socket.socket(
         socket.AF_INET,
@@ -24,6 +44,8 @@ def main():
     buffer = {}
     esperado = 0
     total_pacotes = None
+    chave_atual = None
+    deslocamento_atual = None
 
     while True:
         try:
@@ -72,12 +94,28 @@ def main():
 
             print(f"Janela definida pelo servidor {janela_final}")
 
+            chave = mensagem.get("chave")
+            if not isinstance(chave, str) or not chave.isalpha():
+                print("Chave de criptografia invalida")
+                continue
+
+            if not chave or not chave.isalpha():
+                print("Chave de criptografia invalida")
+                continue
+
+            deslocamento = mensagem.get("deslocamento")
+            if not (isinstance(deslocamento, list) and len(deslocamento) == 26 and all(isinstance(x, int) for x in deslocamento)):
+                print("Deslocamento invalido")
+                continue
+
             resposta = {
                 "tipo": "HANDSHAKE_ACK",
                 "modo_envio": modo_envio,
                 "modo_janela": modo_janela,
                 "tamanho_max_texto": tamanho_max_texto,
-                "janela_final": janela_final
+                "janela_final": janela_final,
+                "chave": chave,
+                "deslocamento": deslocamento
             }
 
             socket_server.sendto(
@@ -87,6 +125,8 @@ def main():
 
             handshake_concluido = True
             modo_janela_atual = modo_janela
+            chave_atual = chave
+            deslocamento_atual = deslocamento
             buffer = {}
             esperado = 0
             total_pacotes = None
@@ -134,8 +174,10 @@ def main():
                 print(f"Enviado ACK Seq {ack_seq}")
 
             if total_pacotes is not None and all(i in buffer for i in range(total_pacotes)):
-                texto_final = "".join(buffer[i] for i in range(total_pacotes))
-                print(f"Texto completo recebido: {texto_final}")
+                texto_cifrado = "".join(buffer[i] for i in range(total_pacotes))
+                texto_final = descriptografar(texto_cifrado, chave_atual, deslocamento_atual)
+                print(f"Texto completo recebido: {texto_cifrado}") ## debug
+                print(f"Texto descriptografado: {texto_final}")
                 buffer = {}
                 esperado = 0
                 total_pacotes = None

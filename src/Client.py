@@ -4,6 +4,7 @@ import json
 HOST = "127.0.0.1"
 PORT = 7777
 TAMANHO_PAYLOAD = 4
+DESLOCAMENTO = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
 
 def calcular_checksum(payload):
     return sum(payload.encode()) % 65536
@@ -17,6 +18,8 @@ def handshake(socket_client):
             break
         except ValueError:
             print("Digite um numero inteiro valido.")
+
+    chave = input("Digite a chave da criptografia: ").upper()
 
     modo_envio = input("Modo de envio (individual/lote): ").lower().strip()
     while modo_envio not in ["individual", "lote"]:
@@ -32,7 +35,9 @@ def handshake(socket_client):
         "tipo": "HANDSHAKE_REQUEST",
         "modo_envio": modo_envio,
         "modo_janela": modo_janela,
-        "tamanho_max_texto": tamanho_max
+        "tamanho_max_texto": tamanho_max,
+        "chave": chave,
+        "deslocamento": DESLOCAMENTO
     }
 
     TENTATIVAS_MAX = 3
@@ -56,7 +61,7 @@ def handshake(socket_client):
 
     if data is None:
         print("Servidor nao respondeu Encerrando")
-        return None, None, None
+        return None, None, None, None, None
 
     try:
         texto_resposta = data.decode()
@@ -64,19 +69,39 @@ def handshake(socket_client):
 
     except (UnicodeDecodeError, json.JSONDecodeError):
         print("Resposta do servidor corrompida")
-        return None, None, None
+        return None, None, None, None, None
 
     if resposta.get("tipo") != "HANDSHAKE_ACK":
         print("Resposta inesperada do servidor")
-        return None, None, None
+        return None, None, None, None, None
 
     print(resposta)
 
     return (
         resposta.get("janela_final"),
         resposta.get("tamanho_max_texto"),
-        resposta.get("modo_janela")
+        resposta.get("modo_janela"),
+        resposta.get("chave", chave),
+        resposta.get("deslocamento", DESLOCAMENTO)
     )
+
+def criptografar(texto, chave):
+    resultado = ""
+    indice_chave = 0
+    for letra in texto:
+        if letra.isalpha():
+            deslocamento = DESLOCAMENTO[ord(chave[indice_chave]) - 65]
+            if letra.isupper():
+                resultado += chr((ord(letra) - 65 + deslocamento) % 26 + 65)
+            else:
+                resultado += chr((ord(letra) - 97 + deslocamento) % 26 + 97)
+            indice_chave += 1
+            if indice_chave == len(chave):
+                indice_chave = 0
+        else:
+            resultado += letra
+            continue
+    return resultado
 
 def ler_input_usuario(tamanho_max):
     texto = input(f"Digite o texto da mensagem maximo de {tamanho_max} caracteres: ").strip()
@@ -160,7 +185,7 @@ def main():
         socket.SOCK_DGRAM
     )
 
-    resposta_janela, resposta_tamanho, resposta_modo_janela = handshake(socket_client)
+    resposta_janela, resposta_tamanho, resposta_modo_janela, chave, deslocamento = handshake(socket_client)
 
     if resposta_janela is None or resposta_tamanho is None or resposta_modo_janela is None:
         socket_client.close()
@@ -170,7 +195,8 @@ def main():
         print("Tamanho maximo", resposta_tamanho)
 
         texto_valido = ler_input_usuario(resposta_tamanho)
-        payloads = fragmentar_texto(texto_valido)
+        texto_cifrado = criptografar(texto_valido, chave)
+        payloads = fragmentar_texto(texto_cifrado)
 
         proximo = enviar_pacotes_iniciais(socket_client, payloads, resposta_janela)
         receber_acks(socket_client, payloads, resposta_janela, resposta_modo_janela, proximo)
