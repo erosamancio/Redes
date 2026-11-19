@@ -19,7 +19,10 @@ def handshake(socket_client):
         except ValueError:
             print("Digite um numero inteiro valido.")
 
-    chave = input("Digite a chave da criptografia: ").upper()
+    chave = input("Digite a chave da criptografia: ").upper().strip()
+    while not (chave and chave.isascii() and chave.isalpha()):
+        print("A chave deve ter apenas letras de A a Z.")
+        chave = input("Digite a chave da criptografia: ").upper().strip()
 
     modo_envio = input("Modo de envio (individual/lote): ").lower().strip()
     while modo_envio not in ["individual", "lote"]:
@@ -89,7 +92,7 @@ def criptografar(texto, chave):
     resultado = ""
     indice_chave = 0
     for letra in texto:
-        if letra.isalpha():
+        if letra.isascii() and letra.isalpha():
             deslocamento = DESLOCAMENTO[ord(chave[indice_chave]) - 65]
             if letra.isupper():
                 resultado += chr((ord(letra) - 65 + deslocamento) % 26 + 65)

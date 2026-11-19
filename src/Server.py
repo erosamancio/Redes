@@ -14,7 +14,7 @@ def descriptografar(texto, chave, deslocamento):
     resultado = ""
     indice_chave = 0
     for letra in texto:
-        if letra.isalpha():
+        if letra.isascii() and letra.isalpha():
             desloc = deslocamento[ord(chave[indice_chave]) - 65]
             if letra.isupper():
                 resultado += chr((ord(letra) - 65 - desloc) % 26 + 65)
@@ -95,11 +95,12 @@ def main():
             print(f"Janela definida pelo servidor {janela_final}")
 
             chave = mensagem.get("chave")
-            if not isinstance(chave, str) or not chave.isalpha():
+            if not isinstance(chave, str):
                 print("Chave de criptografia invalida")
                 continue
 
-            if not chave or not chave.isalpha():
+            chave = chave.strip().upper()
+            if not (chave and chave.isascii() and chave.isalpha()):
                 print("Chave de criptografia invalida")
                 continue
 
