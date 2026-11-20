@@ -125,7 +125,38 @@ def fragmentar_texto(texto_validado):
 
     return fragmentos
 
-def enviar_pacote(socket_client, seq, payload, total_pacotes):
+def configurar_falha(total_pacotes):
+    print("\n=== SIMULADOR DETERMINISTICO ===")
+    print("A - Erro de integridade (checksum invalido)")
+    print("B - Perda de pacote DATA")
+    print("C - Perda de ACK (descarte no cliente)")
+    print("D - Sem erros")
+    while True:
+        cenario = input("Escolha A, B, C ou D: ").upper().strip()
+        if cenario in ("A", "B", "C", "D"):
+            break
+        print("Opcao invalida.")
+
+    seq_padrao = {"A": 2, "B": 1, "C": 2}
+    if cenario == "D":
+        return {"cenario": cenario, "seq": None, "falhas_aplicadas": set()}
+
+    padrao = min(seq_padrao[cenario], total_pacotes - 1)
+    while True:
+        entrada = input(f"Sequencia alvo (0 a {total_pacotes - 1}) [padrao {padrao}]: ").strip()
+        try:
+            seq = padrao if not entrada else int(entrada)
+            if 0 <= seq < total_pacotes:
+                break
+        except ValueError:
+            pass
+        print("Sequencia invalida.")
+
+    print(f"Cenario {cenario} selecionado para seq={seq} (somente uma vez).")
+    return {"cenario": cenario, "seq": seq, "falhas_aplicadas": set()}
+
+
+def enviar_pacote(socket_client, seq, payload, total_pacotes, simulador=None):
     pacote = {
         "tipo": "DATA",
         "seq": seq,
@@ -134,19 +165,32 @@ def enviar_pacote(socket_client, seq, payload, total_pacotes):
         "ultimo": seq == total_pacotes - 1
     }
 
+    if simulador is not None:
+        cenario = simulador["cenario"]
+        falha = (cenario, seq)
+        primeira_vez = (seq == simulador["seq"] and falha not in simulador["falhas_aplicadas"])
+        if primeira_vez and cenario == "B":
+            simulador["falhas_aplicadas"].add(falha)
+            print(f"[SIMULACAO B] DATA seq={seq} descartado antes do sendto")
+            return
+        if primeira_vez and cenario == "A":
+            simulador["falhas_aplicadas"].add(falha)
+            pacote["checksum"] = (pacote["checksum"] + 1) % 65536
+            print(f"[SIMULACAO A] Checksum adulterado em DATA seq={seq}")
+
     socket_client.sendto(json.dumps(pacote).encode(), (HOST, PORT))
     print(f"Enviado Pacote DATA Seq {seq} Payload {payload}")
 
-def enviar_pacotes_iniciais(socket_client, payloads, janela):
+def enviar_pacotes_iniciais(socket_client, payloads, janela, simulador=None):
     total_pacotes = len(payloads)
     limite_envio = min(janela, total_pacotes)
 
     for seq in range(limite_envio):
-        enviar_pacote(socket_client, seq, payloads[seq], total_pacotes)
+        enviar_pacote(socket_client, seq, payloads[seq], total_pacotes, simulador)
 
     return limite_envio
 
-def receber_acks(socket_client, payloads, janela, modo_janela, proximo):
+def receber_acks(socket_client, payloads, janela, modo_janela, proximo, simulador=None):
     total_pacotes = len(payloads)
     confirmados = set()
     base = 0
@@ -161,10 +205,35 @@ def receber_acks(socket_client, payloads, janela, modo_janela, proximo):
         except (UnicodeDecodeError, json.JSONDecodeError):
             continue
 
+        if ack.get("tipo") == "NACK":
+            seq_nack = ack.get("seq")
+
+            if type(seq_nack) is not int or not (0 <= seq_nack < proximo):
+                print("NACK invalido; ignorando")
+                continue
+
+            if seq_nack < base or (modo_janela == "SR" and seq_nack in confirmados):
+                print(f"NACK antigo para seq={seq_nack}; ignorando")
+                continue
+
+            print(f"Recebido NACK seq={seq_nack}. Retransmitindo imediatamente...")
+            enviar_pacote(socket_client, seq_nack, payloads[seq_nack], total_pacotes, simulador)
+            continue
+
         if ack.get("tipo") != "ACK":
             continue
 
         seq = ack.get("seq")
+        if not isinstance(seq, int) or not (0 <= seq < total_pacotes):
+            continue
+
+        if (simulador is not None and simulador["cenario"] == "C"
+                and seq == simulador["seq"]
+                and ("C", seq) not in simulador["falhas_aplicadas"]):
+            simulador["falhas_aplicadas"].add(("C", seq))
+            print(f"[SIMULACAO C] ACK seq={seq} recebido, mas descartado")
+            continue
+
         print(f"Recebido ACK Seq {seq}")
 
         if modo_janela == "GBN":
@@ -176,7 +245,7 @@ def receber_acks(socket_client, payloads, janela, modo_janela, proximo):
                 base += 1
 
         while proximo < total_pacotes and proximo < base + janela:
-            enviar_pacote(socket_client, proximo, payloads[proximo], total_pacotes)
+            enviar_pacote(socket_client, proximo, payloads[proximo], total_pacotes, simulador)
             proximo += 1
 
     if base == total_pacotes:
@@ -201,8 +270,9 @@ def main():
         texto_cifrado = criptografar(texto_valido, chave)
         payloads = fragmentar_texto(texto_cifrado)
 
-        proximo = enviar_pacotes_iniciais(socket_client, payloads, resposta_janela)
-        receber_acks(socket_client, payloads, resposta_janela, resposta_modo_janela, proximo)
+        simulador = configurar_falha(len(payloads))
+        proximo = enviar_pacotes_iniciais(socket_client, payloads, resposta_janela, simulador)
+        receber_acks(socket_client, payloads, resposta_janela, resposta_modo_janela, proximo, simulador)
 
         socket_client.close()
 
