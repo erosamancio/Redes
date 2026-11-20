@@ -1,8 +1,6 @@
 import socket
 import json
 
-
-
 HOST = "127.0.0.1"
 PORT = 7777
 CAPACIDADE_MAXIMA_JANELA = 5
@@ -27,7 +25,6 @@ def descriptografar(texto, chave, deslocamento):
             resultado += letra
     return resultado
 
-    
 def main():
     socket_server = socket.socket(
         socket.AF_INET,
@@ -144,7 +141,15 @@ def main():
                 continue
 
             if calcular_checksum(payload) != checksum:
-                print(f"Checksum invalido Seq {seq} Ignorando")
+                print(f"Checksum invalido Seq {seq} Enviando NACK")
+                nack = {
+                    "tipo": "NACK",
+                    "seq": seq
+                }
+                socket_server.sendto(
+                    json.dumps(nack).encode(),
+                    endereco
+                )
                 continue
 
             print(f"Recebido DATA Seq {seq} Payload {payload} Checksum {checksum}")
@@ -155,12 +160,19 @@ def main():
                     esperado += 1
                     if ultimo:
                         total_pacotes = seq + 1
-                ack_seq = esperado - 1 
+                ack_seq = esperado - 1
             else:
-                buffer[seq] = payload
-                if ultimo:
-                    total_pacotes = seq + 1
-                ack_seq = seq
+                if seq < esperado + CAPACIDADE_MAXIMA_JANELA:
+                    if seq not in buffer:
+                        buffer[seq] = payload
+                        if ultimo:
+                            total_pacotes = seq + 1
+                    while esperado in buffer:
+                        esperado += 1
+                    ack_seq = seq
+                else:
+                    print(f"Pacote Seq {seq} fora da janela SR Ignorando")
+                    continue
 
             if ack_seq >= 0:
                 ack = {
@@ -174,15 +186,12 @@ def main():
                 )
                 print(f"Enviado ACK Seq {ack_seq}")
 
-            if total_pacotes is not None and all(i in buffer for i in range(total_pacotes)):
+            if total_pacotes is not None and len(buffer) == total_pacotes:
                 texto_cifrado = "".join(buffer[i] for i in range(total_pacotes))
                 texto_final = descriptografar(texto_cifrado, chave_atual, deslocamento_atual)
-                print(f"Texto completo recebido: {texto_cifrado}") ## debug
+                print(f"Texto completo recebido: {texto_cifrado}")
                 print(f"Texto descriptografado: {texto_final}")
-                buffer = {}
-                esperado = 0
                 total_pacotes = None
-                handshake_concluido = False
 
 if __name__ == "__main__":
     main()
