@@ -48,8 +48,8 @@ Este projeto consiste em uma aplicação cliente e servidor feita para garantir 
 - Recepção de NACK no cliente e retransmissão imediata do pacote corrompido ✅
 - Tratamento de pacotes duplicados e controle da janela de recepção no servidor (GBN e SR) ✅
 - Manutenção da sessão ativa no servidor após a entrega final para responder a ACKs perdidos ✅
-- Temporizador e retransmissão por timeout da janela ativa no modo Go-Back-N (GBN)
-- Temporizadores individuais e retransmissão seletiva por timeout no modo Repetição Seletiva (SR)
+- Temporizador e retransmissão por timeout da janela ativa no modo Go-Back-N (GBN) ✅
+- Temporizadores individuais e retransmissão seletiva por timeout no modo Repetição Seletiva (SR) ✅
 </details>
 
 ## Equipe

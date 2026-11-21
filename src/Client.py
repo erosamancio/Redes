@@ -1,9 +1,13 @@
 import socket
 import json
+import time
 
 HOST = "127.0.0.1"
 PORT = 7777
 TAMANHO_PAYLOAD = 4
+TIMEOUT_RETRANSMISSAO = 3.0
+INTERVALO_VERIFICACAO = 0.2
+MAX_TIMEOUTS_SEGUIDOS = 10
 DESLOCAMENTO = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
 
 def calcular_checksum(payload):
@@ -195,13 +199,40 @@ def receber_acks(socket_client, payloads, janela, modo_janela, proximo, simulado
     confirmados = set()
     base = 0
 
+    socket_client.settimeout(INTERVALO_VERIFICACAO)
+
+    agora = time.time()
+    timer_gbn = agora if proximo > base else None
+    timers = {seq: agora for seq in range(base, proximo)}
+    timeouts_seguidos = 0
+
     while base < total_pacotes:
+        agora = time.time()
+        if modo_janela == "GBN":
+            if timer_gbn is not None and agora - timer_gbn >= TIMEOUT_RETRANSMISSAO:
+                timeouts_seguidos += 1
+                print(f"[TIMEOUT GBN] Base {base} expirou. Retransmitindo janela {base} a {proximo - 1}")
+                for seq_ret in range(base, proximo):
+                    enviar_pacote(socket_client, seq_ret, payloads[seq_ret], total_pacotes, simulador)
+                timer_gbn = time.time()
+        else:
+            expirados = [s for s, inicio in timers.items() if agora - inicio >= TIMEOUT_RETRANSMISSAO]
+            if expirados:
+                timeouts_seguidos += 1
+            for seq_ret in sorted(expirados):
+                print(f"[TIMEOUT SR] Seq {seq_ret} expirou. Retransmitindo apenas este pacote")
+                enviar_pacote(socket_client, seq_ret, payloads[seq_ret], total_pacotes, simulador)
+                timers[seq_ret] = time.time()
+
+        if timeouts_seguidos > MAX_TIMEOUTS_SEGUIDOS:
+            print("Servidor parou de responder. Encerrando transmissao")
+            return
+
         try:
             data, endereco = socket_client.recvfrom(1024)
             ack = json.loads(data.decode())
         except socket.timeout:
-            print("Timeout esperando ACK")
-            break
+            continue
         except (UnicodeDecodeError, json.JSONDecodeError):
             continue
 
@@ -218,6 +249,10 @@ def receber_acks(socket_client, payloads, janela, modo_janela, proximo, simulado
 
             print(f"Recebido NACK seq={seq_nack}. Retransmitindo imediatamente...")
             enviar_pacote(socket_client, seq_nack, payloads[seq_nack], total_pacotes, simulador)
+            if modo_janela == "SR":
+                timers[seq_nack] = time.time()
+            elif seq_nack == base:
+                timer_gbn = time.time()
             continue
 
         if ack.get("tipo") != "ACK":
@@ -239,13 +274,22 @@ def receber_acks(socket_client, payloads, janela, modo_janela, proximo, simulado
         if modo_janela == "GBN":
             if seq + 1 > base:
                 base = seq + 1
+                timeouts_seguidos = 0
+                timer_gbn = time.time() if base < proximo else None
         else:
-            confirmados.add(seq)
+            if seq not in confirmados:
+                confirmados.add(seq)
+                timers.pop(seq, None)
+                timeouts_seguidos = 0
             while base in confirmados:
                 base += 1
 
         while proximo < total_pacotes and proximo < base + janela:
             enviar_pacote(socket_client, proximo, payloads[proximo], total_pacotes, simulador)
+            if modo_janela == "SR":
+                timers[proximo] = time.time()
+            elif timer_gbn is None:
+                timer_gbn = time.time()
             proximo += 1
 
     if base == total_pacotes:
