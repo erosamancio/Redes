@@ -14,11 +14,11 @@ Este projeto consiste em uma aplicação cliente e servidor feita para garantir 
 
   <br>
   
-  * Conexão entre aplicação cliente e servidor via socket ✅
-  * Troca de mensagens estabelecendo o modo de operação (individual/lote e Go-Back-N/Repetição Seletiva) ✅
-  * Definição dinâmica do tamanho máximo do texto com limite mínimo de 30 caracteres ✅
-  * Determinação do tamanho inicial da janela pelo servidor (variando de 1 a 5) ✅
-  * Impressão dos metadados das mensagens e confirmações recebidas no terminal do cliente e do servidor ✅
+- Conexão entre aplicação cliente e servidor via socket ✅
+- Troca de mensagens estabelecendo o modo de operação (individual/lote e Go-Back-N/Repetição Seletiva) ✅
+- Definição dinâmica do tamanho máximo do texto com limite mínimo de 30 caracteres ✅
+- Determinação do tamanho inicial da janela pelo servidor (variando de 1 a 5) ✅
+- Impressão dos metadados das mensagens e confirmações recebidas no terminal do cliente e do servidor ✅
 </details>
 
 <details>
@@ -26,19 +26,30 @@ Este projeto consiste em uma aplicação cliente e servidor feita para garantir 
 
   <br>
 
-  * Leitura e validação da mensagem digitada pelo usuário ✅
-  * Fragmentação do texto em payloads de no máximo 4 caracteres ✅
-  * Definição da estrutura do pacote adicionando cabeçalhos (Tipo, Número de Sequência e Checksum) ✅
-  * Lógica de envio em lote no cliente respeitando o limite máximo da janela estipulada ✅
-  * Recepção de pacotes no servidor e impressão dos metadados individuais no terminal ✅
-  * Envio das confirmações de recebimento (ACKs) pelo servidor ✅
-  * Escuta contínua de ACKs no cliente e deslizamento da janela de envio ✅
-  * Detecção de fim de transmissão e remontagem da mensagem de texto final no servidor ✅
+- Leitura e validação da mensagem digitada pelo usuário ✅
+- Fragmentação do texto em payloads de no máximo 4 caracteres ✅
+- Definição da estrutura do pacote adicionando cabeçalhos (Tipo, Número de Sequência e Checksum) ✅
+- Lógica de envio em lote no cliente respeitando o limite máximo da janela estipulada ✅
+- Recepção de pacotes no servidor e impressão dos metadados individuais no terminal ✅
+- Envio das confirmações de recebimento (ACKs) pelo servidor ✅
+- Escuta contínua de ACKs no cliente e deslizamento da janela de envio ✅
+- Detecção de fim de transmissão e remontagem da mensagem de texto final no servidor ✅
 </details>
 
 <details>
   <summary><strong>Entrega 3: Inserção de Erros e Perdas (23/11/2026)</strong></summary>
 
+  <br>
+
+- Implementação manual do algoritmo de checagem de integridade (Checksum 16 bits) sem bibliotecas externas ✅
+- Implementação manual do algoritmo de criptografia simétrica (Cifra de Vigenère) sem bibliotecas externas ✅
+- Simulador determinístico de falhas no cliente (corrupção de checksum, perda de pacote DATA e descarte de ACK) ✅
+- Envio de Reconhecimento Negativo (NACK) pelo servidor ao detectar falha de integridade ✅
+- Recepção de NACK no cliente e retransmissão imediata do pacote corrompido ✅
+- Tratamento de pacotes duplicados e controle da janela de recepção no servidor (GBN e SR) ✅
+- Manutenção da sessão ativa no servidor após a entrega final para responder a ACKs perdidos ✅
+- Temporizador e retransmissão por timeout da janela ativa no modo Go-Back-N (GBN)
+- Temporizadores individuais e retransmissão seletiva por timeout no modo Repetição Seletiva (SR)
 </details>
 
 ## Equipe
